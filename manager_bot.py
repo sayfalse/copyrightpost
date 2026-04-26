@@ -36,8 +36,7 @@ MANAGER_BOT_TOKEN: str = os.environ["MANAGER_BOT_TOKEN"]
 MANAGER_USERNAME: str  = os.environ["MANAGER_USERNAME"]
 OWNER_ID: int          = int(os.environ["OWNER_ID"])
 
-_API_BASE = f"https://api.telegram.org/bot{MANAGER_BOT_TOKEN}"
-_TIMEOUT  = 20  # seconds
+_TIMEOUT = 20  # seconds
 
 # ─────────────────────────────────────────────
 # LOGGING
@@ -143,7 +142,7 @@ async def _configure_child_bot(child_token: str, bot_username: str) -> None:
             "setMyDescription",
             {
                 "description": (
-                    f"👋 I am @{bot_username}.\n"
+                    f"I am @{bot_username}.\n"
                     f"Created and managed via @{MANAGER_USERNAME}.\n\n"
                     f"Use /help to see what I can do."
                 )
@@ -152,7 +151,7 @@ async def _configure_child_bot(child_token: str, bot_username: str) -> None:
         ),
         (
             "setMyShortDescription",
-            {"short_description": f"Managed bot — created via @{MANAGER_USERNAME}."},
+            {"short_description": f"Managed bot created via @{MANAGER_USERNAME}."},
             "short description",
         ),
         (
@@ -201,10 +200,10 @@ async def _handle_any_update(update: Update, context: ContextTypes.DEFAULT_TYPE)
     new_bot      = managed.get("bot") or {}
     creator      = managed.get("user") or {}
 
-    bot_id: Optional[int]       = new_bot.get("id")
-    bot_username: str            = new_bot.get("username") or "unknown"
-    owner_id: Optional[int]     = creator.get("id")
-    owner_username: str          = creator.get("username") or "unknown"
+    bot_id: Optional[int]   = new_bot.get("id")
+    bot_username: str        = new_bot.get("username") or "unknown"
+    owner_id: Optional[int] = creator.get("id")
+    owner_username: str      = creator.get("username") or "unknown"
 
     if not bot_id or not owner_id:
         logger.error("managed_bot update missing bot_id or owner_id: %s", raw)
@@ -215,18 +214,18 @@ async def _handle_any_update(update: Update, context: ContextTypes.DEFAULT_TYPE)
         bot_username, bot_id, owner_username, owner_id,
     )
 
-    # ── Step 1: Fetch child token ──────────────────────────────────────────
+    # Step 1: Fetch child token
     child_token = await _get_managed_bot_token(bot_id)
     if not child_token:
         logger.error("Could not retrieve token for bot %d. Aborting setup.", bot_id)
         await _safe_send(
             owner_id,
-            f"⚠️ Your bot @{bot_username} was created, but I could not retrieve "
+            f"Your bot @{bot_username} was created, but I could not retrieve "
             f"its token. Please contact the admin @{MANAGER_USERNAME}.",
         )
         return
 
-    # ── Step 2: Persist to Telegram storage ───────────────────────────────
+    # Step 2: Persist to Telegram storage
     saved = await upsert_bot(
         bot_id=bot_id,
         bot_username=bot_username,
@@ -237,25 +236,25 @@ async def _handle_any_update(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not saved:
         logger.error("Storage write failed for @%s — proceeding anyway.", bot_username)
 
-    # ── Step 3: Configure child bot ───────────────────────────────────────
+    # Step 3: Configure child bot
     await _configure_child_bot(child_token, bot_username)
 
-    # ── Step 4: Notify creator ────────────────────────────────────────────
+    # Step 4: Notify creator
     await _safe_send(
         owner_id,
         (
-            f"✅ *Your bot has been created and configured!*\n\n"
-            f"🤖 @{bot_username}\n"
-            f"🔗 https://t.me/{bot_username}\n\n"
+            f"*Your bot has been created and configured!*\n\n"
+            f"Bot: @{bot_username}\n"
+            f"Link: https://t.me/{bot_username}\n\n"
             f"Use /mybots to see all your bots."
         ),
     )
 
-    # ── Step 5: Notify platform owner ────────────────────────────────────
+    # Step 5: Notify platform owner
     await _safe_send(
         OWNER_ID,
         (
-            f"📦 *New child bot created*\n\n"
+            f"*New child bot created*\n\n"
             f"Bot: @{bot_username} (`{bot_id}`)\n"
             f"Owner: @{owner_username} (`{owner_id}`)"
         ),
@@ -271,36 +270,27 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if user is None:
         return
 
-    # Build a personalised creation link using the user's Telegram ID for uniqueness
-    suggested_username = f"Bot{user.id}"
-    suggested_name     = f"{user.first_name}s Bot".replace(" ", "+")
-    creation_link = (
-        f"https://t.me/BotFather?start=newbot"
-        # The Managed Bots creation link format:
-        f"\n\n_(Or ask BotFather to create a bot under @{MANAGER_USERNAME})_"
-    )
-
     await update.message.reply_text(
-        f"👋 Hello, *{user.first_name}*\\!\n\n"
-        f"I am a *Manager Bot*\\. I can create and configure Telegram bots for you\\.\n\n"
-        f"To create your bot, open BotFather and select @{MANAGER_USERNAME} "
-        f"as the manager, or use the link below\\.\n"
-        f"{creation_link}\n\n"
-        f"Use /help to see all available commands\\.",
-        parse_mode="MarkdownV2",
+        f"Hello, {user.first_name}!\n\n"
+        f"I am a Manager Bot. I can create and configure Telegram bots for you.\n\n"
+        f"To get your own bot:\n"
+        f"1. Open @BotFather\n"
+        f"2. Select @{MANAGER_USERNAME} as the manager bot\n"
+        f"3. Follow the steps to create your bot\n\n"
+        f"Your bot will be automatically set up and you will receive a link to it.\n\n"
+        f"Use /help to see all available commands.",
     )
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "📖 *Available Commands*\n\n"
-        "/start — Introduction and bot creation guide\n"
-        "/mybots — List all bots you have created\n"
-        "/help — Show this message\n\n"
-        "👑 *Admin Only*\n"
-        "/allbots — List every bot from all users\n"
-        "/deletebot \\<bot\\_id\\> — Remove a bot record",
-        parse_mode="MarkdownV2",
+        "Available Commands:\n\n"
+        "/start - Introduction and bot creation guide\n"
+        "/mybots - List all bots you have created\n"
+        "/help - Show this message\n\n"
+        "Admin Only:\n"
+        "/allbots - List every bot from all users\n"
+        "/deletebot <bot_id> - Remove a bot record",
     )
 
 
@@ -318,20 +308,20 @@ async def cmd_mybots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         )
         return
 
-    lines = [f"🤖 *Your Bots ({len(bots)})*\n"]
+    lines = [f"Your Bots ({len(bots)}):\n"]
     for b in bots:
         lines.append(
-            f"• @{b['bot_username']} — `{b['bot_id']}`\n"
+            f"@{b['bot_username']} — ID: {b['bot_id']}\n"
             f"  Created: {b['created_at'][:10]}"
         )
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lines))
 
 
 async def cmd_allbots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     if user is None or user.id != OWNER_ID:
-        await update.message.reply_text("⛔ You are not authorised to use this command.")
+        await update.message.reply_text("You are not authorised to use this command.")
         return
 
     bots = get_all_bots()
@@ -340,21 +330,21 @@ async def cmd_allbots(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("No child bots have been created yet.")
         return
 
-    lines = [f"📋 *All Child Bots ({len(bots)})*\n"]
+    lines = [f"All Child Bots ({len(bots)}):\n"]
     for b in bots:
         lines.append(
-            f"• @{b['bot_username']} — owner: @{b['owner_username']}\n"
-            f"  Bot ID: `{b['bot_id']}` | Created: {b['created_at'][:10]}"
+            f"@{b['bot_username']} — owner: @{b['owner_username']}\n"
+            f"  Bot ID: {b['bot_id']} | Created: {b['created_at'][:10]}"
         )
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lines))
 
 
 async def cmd_deletebot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Admin-only: remove a bot record by bot_id."""
     user = update.effective_user
     if user is None or user.id != OWNER_ID:
-        await update.message.reply_text("⛔ You are not authorised to use this command.")
+        await update.message.reply_text("You are not authorised to use this command.")
         return
 
     args = context.args
@@ -368,9 +358,18 @@ async def cmd_deletebot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     removed = await delete_bot(bot_id)
 
     if removed:
-        await update.message.reply_text(f"✅ Bot record `{bot_id}` removed.", parse_mode="Markdown")
+        await update.message.reply_text(f"Bot record {bot_id} removed successfully.")
     else:
-        await update.message.reply_text(f"⚠️ No record found for bot ID `{bot_id}`.", parse_mode="Markdown")
+        await update.message.reply_text(f"No record found for bot ID {bot_id}.")
+
+
+# ─────────────────────────────────────────────
+# ERROR HANDLER
+# ─────────────────────────────────────────────
+
+async def _error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log all unhandled exceptions raised inside handlers."""
+    logger.error("Unhandled exception while processing update:", exc_info=context.error)
 
 
 # ─────────────────────────────────────────────
@@ -391,16 +390,19 @@ def main() -> None:
         .build()
     )
 
-    app.add_handler(CommandHandler("start",      cmd_start))
-    app.add_handler(CommandHandler("help",       cmd_help))
-    app.add_handler(CommandHandler("mybots",     cmd_mybots))
-    app.add_handler(CommandHandler("allbots",    cmd_allbots))
-    app.add_handler(CommandHandler("deletebot",  cmd_deletebot))
+    app.add_handler(CommandHandler("start",     cmd_start))
+    app.add_handler(CommandHandler("help",      cmd_help))
+    app.add_handler(CommandHandler("mybots",    cmd_mybots))
+    app.add_handler(CommandHandler("allbots",   cmd_allbots))
+    app.add_handler(CommandHandler("deletebot", cmd_deletebot))
 
     # MUST use TypeHandler(Update) — MessageHandler never fires for managed_bot updates
     app.add_handler(TypeHandler(Update, _handle_any_update), group=1)
 
-    logger.info("Manager Bot starting (polling mode)…")
+    # Global error handler — prevents silent crashes
+    app.add_error_handler(_error_handler)
+
+    logger.info("Manager Bot starting (polling mode)...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
