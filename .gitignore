@@ -1,0 +1,29 @@
+# Environment & secrets
+.env
+*.env
+
+# Database files (SQLite — not used in production, but guard anyway)
+*.db
+*.sqlite3
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS artifacts
+.DS_Store
+Thumbs.db
